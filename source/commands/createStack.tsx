@@ -16,44 +16,24 @@ const CreateStack: React.FC = () => {
 	const {exit} = useApp();
 
 	const handleCompletion = async () => {
-		//const {stdout, stderr} = await exec('jj git fetch');
-		//if (stderr && stderr != '') {
-		//	console.log(stderr);
-		//	return;
-		//} else {
-		//	console.log(stdout);
-		//}
+		await exec('jj git fetch');
 
 		let index = 0;
 		for (const item of items) {
 			if (index == 0) {
-				const {stdout, stderr} = await exec('jj new @ main -m ' + item);
-				if (stderr && stderr != '') {
-					console.log(stderr);
-					return;
-				} else {
-					console.log(stdout);
-				}
+				await exec('jj new @ main -m ' + item);
 			} else {
-				const {stdout, stderr} = await exec('jj new @ main -m ' + item);
-				if (stderr && stderr != '') {
-					console.log(stderr);
-					return;
-				} else {
-					console.log(stdout);
-				}
+				await exec('jj new -m ' + item);
 			}
 
 			index++;
 		}
 		if (items.length > 0) {
-			const {stdout, stderr} = await exec('jj prev ' + (items.length - 1));
-			if (stderr && stderr != '') {
-				console.log(stderr);
-				return;
-			} else {
-				console.log(stdout);
-			}
+			const {stdout, stderr} = await exec(
+				'jj prev ' + (items.length - 1) + ' --edit',
+			);
+			console.log(stdout);
+			console.log(stderr);
 		}
 
 		exit();
