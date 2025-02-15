@@ -5,6 +5,7 @@ import util from 'node:util';
 import child_process from 'node:child_process';
 
 const exec = util.promisify(child_process.exec);
+const execFile = util.promisify(child_process.execFile);
 
 const CreateStack: React.FC = () => {
 	const [items, setItems] = useState<string[]>([]);
@@ -16,22 +17,25 @@ const CreateStack: React.FC = () => {
 	const {exit} = useApp();
 
 	const handleCompletion = async () => {
-		await exec('jj git fetch');
+		await execFile('jj', ['git', 'fetch']);
 
 		let index = 0;
 		for (const item of items) {
 			if (index == 0) {
-				await exec('jj new @ main -m ' + item);
+				await execFile('jj', ['new', '@', 'main', '-m', item]);
 			} else {
-				await exec('jj new -m ' + item);
+				await execFile('jj', ['new', '-m', item]);
 			}
 
 			index++;
 		}
 		if (items.length > 0) {
-			const {stdout, stderr} = await exec(
-				'jj prev ' + (items.length - 1) + ' --edit',
-			);
+			const {stdout, stderr} = await execFile('jj', [
+				'prev',
+				(items.length - 1).toString(),
+				'--edit',
+			]);
+
 			console.log(stdout);
 			console.log(stderr);
 		}
