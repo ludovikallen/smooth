@@ -3,7 +3,10 @@
 	"compilerOptions": {
 		"moduleResolution": "node16",
 		"module": "Node16",
-		"outDir": "dist"
+		"outDir": "dist",
+        "allowImportingTsExtensions": true,
+        "emitDeclarationOnly": true,
+        "strict": true
 	},
 	"include": ["source"]
 }
