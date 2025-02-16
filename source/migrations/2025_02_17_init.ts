@@ -18,7 +18,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('stack_id', 'numeric')
 		.addColumn('index', 'numeric')
 		.addColumn('name', 'text')
-		.addColumn('commit_id', 'text')
+		.addColumn('change_id', 'text')
 		.addColumn('bookmark_name', 'text')
 		.addColumn('is_submitted', 'boolean')
 		.addColumn('is_done', 'boolean')
@@ -26,9 +26,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.execute();
 
 	await db.schema
-		.createIndex('block_commit_id_unique_index')
+		.createIndex('block_change_id_unique_index')
 		.on('block')
-		.columns(['commit_id'])
+		.columns(['change_id'])
 		.execute();
 
 	await db.schema

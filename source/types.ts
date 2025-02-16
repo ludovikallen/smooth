@@ -10,7 +10,8 @@ export interface BlockTable {
 	stack_id: number;
 	index: number;
 	name: string;
-	commit_id: string;
+	change_id: string;
+	bookmark_name: string;
 	is_submitted: 0 | 1;
 	is_done: 0 | 1;
 }

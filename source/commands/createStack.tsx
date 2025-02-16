@@ -53,18 +53,20 @@ const CreateStack: React.FC = () => {
 				await execFile('jj', ['new', '-m', commitPrefix + item]);
 			}
 
-			const {stdout: commitId} = await execFile('jj', [
+			const {stdout} = await execFile('jj', [
 				'show',
 				'--template',
-				'commit_id',
+				'change_id ++ " "',
 			]);
+			const changeId = stdout.split(' ')[0];
 
 			blocks.push({
 				index: index,
 				is_done: 0,
 				is_submitted: 0,
 				name: item,
-				commit_id: commitId,
+				change_id: changeId!,
+				bookmark_name: bookmarkPrefix + changeId,
 			});
 
 			index++;
