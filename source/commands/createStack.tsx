@@ -107,6 +107,18 @@ const CreateStack: React.FC = () => {
 			if (input === 'c') {
 				handleCompletion();
 			}
+
+			if (input === 'd') {
+				const newItems = [...items];
+				newItems.splice(selectedIndex, 1);
+				setItems(newItems);
+
+				if (newItems.length === 0) {
+					setIsFirstItem(true);
+				} else {
+					setSelectedIndex(selectedIndex == 0 ? 0 : selectedIndex - 1);
+				}
+			}
 		} else if (isEditing) {
 			if (key.upArrow) {
 				handleMoveUp();
@@ -144,7 +156,9 @@ const CreateStack: React.FC = () => {
 					{isEditing ? (
 						<Text>Save (enter) | Move (↑↓)</Text>
 					) : (
-						<Text>Navigate (↑↓) | Add (a) | Edit (e) | Complete (c)</Text>
+						<Text>
+							Navigate (↑↓) | Add (a) | Edit (e) | Delete (d) | Complete (c)
+						</Text>
 					)}
 				</>
 			)}
