@@ -17,6 +17,7 @@
 	],
 	"dependencies": {
 		"ink": "^5.1.0",
+		"ink-divider": "^4.1.0",
 		"ink-text-input": "^6.0.0",
 		"pastel": "^3.0.0",
 		"react": "^18.2.0",
