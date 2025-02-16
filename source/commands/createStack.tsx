@@ -4,7 +4,6 @@ import TextInput from 'ink-text-input';
 import util from 'node:util';
 import child_process from 'node:child_process';
 
-const exec = util.promisify(child_process.exec);
 const execFile = util.promisify(child_process.execFile);
 
 const CreateStack: React.FC = () => {
