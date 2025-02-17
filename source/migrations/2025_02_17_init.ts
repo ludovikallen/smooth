@@ -3,7 +3,8 @@ import {Kysely} from 'kysely';
 export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable('stack')
-		.addColumn('id', 'numeric', col => col.primaryKey().autoIncrement())
+		.ifNotExists()
+		.addColumn('id', 'integer', col => col.primaryKey().autoIncrement())
 		.addColumn('name', 'text')
 		.addColumn('target_bookmark', 'text')
 		.addColumn('bookmark_prefix', 'text')
@@ -12,11 +13,13 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 	await db.schema
 		.createTable('block')
-		.addColumn('id', 'numeric', col => col.primaryKey().autoIncrement())
+		.ifNotExists()
+		.addColumn('id', 'integer', col => col.primaryKey().autoIncrement())
 		.addColumn('stack_id', 'numeric')
 		.addColumn('index', 'numeric')
 		.addColumn('name', 'text')
 		.addColumn('commit_id', 'text')
+		.addColumn('bookmark_name', 'text')
 		.addColumn('is_submitted', 'boolean')
 		.addColumn('is_done', 'boolean')
 		.addForeignKeyConstraint('fk_stack_id', ['stack_id'], 'stack', ['id'])

@@ -1,16 +1,11 @@
-import * as path from 'path';
-import {promises as fs} from 'fs';
-import {db} from './database.ts';
-import {Migrator, FileMigrationProvider} from 'kysely';
+import {db} from './database.js';
+import {Migrator} from 'kysely';
+import {ESMFileMigrationProvider} from './ESMFileMigrationProvider.js';
 
-async function migrateToLatest() {
+export async function migrateToLatest() {
 	const migrator = new Migrator({
 		db,
-		provider: new FileMigrationProvider({
-			fs,
-			path,
-			migrationFolder: path.join(__dirname, 'migrations'),
-		}),
+		provider: new ESMFileMigrationProvider('migrations'),
 	});
 
 	const {error, results} = await migrator.migrateToLatest();
@@ -31,5 +26,3 @@ async function migrateToLatest() {
 
 	await db.destroy();
 }
-
-migrateToLatest();

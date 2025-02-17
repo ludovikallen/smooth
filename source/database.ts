@@ -1,9 +1,9 @@
-import {Database} from './types.ts';
+import {Database} from './types.js';
 import SQLite from 'better-sqlite3';
 import {Kysely, SqliteDialect} from 'kysely';
 
 const dialect = new SqliteDialect({
-	database: new SQLite('test.sqlite'),
+	database: new SQLite('./.smooth/smooth.sqlite'),
 });
 
 // Database interface is passed to Kysely's constructor, and from now on, Kysely

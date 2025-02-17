@@ -1,12 +1,12 @@
 {
 	"extends": "@sindresorhus/tsconfig",
 	"compilerOptions": {
-		"moduleResolution": "node16",
-		"module": "Node16",
+		"moduleResolution": "NodeNext",
+		"module": "NodeNext",
 		"outDir": "dist",
-        "allowImportingTsExtensions": true,
-        "emitDeclarationOnly": true,
-        "strict": true
+        "lib": [
+          "ES2021.String"
+        ]
 	},
 	"include": ["source"]
 }

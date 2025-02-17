@@ -1,5 +1,5 @@
-import {db} from './database.ts';
-import {Stack, NewStack, NewBlock, Block} from './types.ts';
+import {db} from './database.js';
+import {Stack, NewStack, NewBlock, Block} from './types.js';
 
 export async function findStackByCommitId(
 	commitId: string,
