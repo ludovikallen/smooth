@@ -4,6 +4,8 @@ import TextInput from 'ink-text-input';
 import util from 'node:util';
 import child_process from 'node:child_process';
 import Divider from 'ink-divider';
+import {createStack} from '../repository.js';
+import {NewBlock} from '../types.js';
 
 const execFile = util.promisify(child_process.execFile);
 
@@ -37,6 +39,7 @@ const CreateStack: React.FC = () => {
 		await execFile('jj', ['git', 'fetch']);
 
 		let index = 0;
+		const blocks = [] as NewBlock[];
 		for (const item of items) {
 			if (index == 0) {
 				await execFile('jj', ['new', '@', 'main', '-m', item]);
@@ -44,19 +47,35 @@ const CreateStack: React.FC = () => {
 				await execFile('jj', ['new', '-m', item]);
 			}
 
+			const {stdout: commitId} = await execFile('jj', [
+				'show',
+				'--template',
+				'commit_id',
+			]);
+
+			blocks.push({
+				index: index,
+				is_done: 0,
+				is_submitted: 0,
+				name: item,
+				commit_id: commitId,
+			});
+
 			index++;
 		}
 		if (items.length > 0) {
-			const {stdout, stderr} = await execFile('jj', [
-				'prev',
-				(items.length - 1).toString(),
-				'--edit',
-			]);
+			await execFile('jj', ['prev', (items.length - 1).toString(), '--edit']);
 
-			console.log(stdout);
-			console.log(stderr);
+			createStack(
+				{
+					name: stackName,
+					target_bookmark: targetBookmark,
+					bookmark_prefix: bookmarkPrefix,
+					commit_prefix: commitPrefix,
+				},
+				blocks,
+			);
 		}
-
 		exit();
 	};
 

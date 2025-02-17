@@ -11,8 +11,8 @@ export interface BlockTable {
 	index: number;
 	name: string;
 	commit_id: string;
-	is_submitted: boolean;
-	is_done: boolean;
+	is_submitted: 0 | 1;
+	is_done: 0 | 1;
 }
 
 export type Block = Selectable<BlockTable>;
