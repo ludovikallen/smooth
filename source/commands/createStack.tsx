@@ -24,7 +24,7 @@ const CreateStack: React.FC = () => {
 	);
 	const [previousStep, setPreviousStep] = useState<Step | undefined>();
 	const [items, setItems] = useState<string[]>([]);
-	const [targetBookmark, setTargetBookmark] = useState<string>('');
+	const [targetBookmark, setTargetBookmark] = useState<string>('main');
 	const [bookmarkPrefix, setBookmarkPrefix] = useState<string>('');
 	const [commitPrefix, setCommitPrefix] = useState<string>('');
 	const [stackName, setStackName] = useState<string>('');
@@ -42,9 +42,15 @@ const CreateStack: React.FC = () => {
 		const blocks = [] as NewBlock[];
 		for (const item of items) {
 			if (index == 0) {
-				await execFile('jj', ['new', '@', 'main', '-m', item]);
+				await execFile('jj', [
+					'new',
+					'@',
+					targetBookmark,
+					'-m',
+					commitPrefix + item,
+				]);
 			} else {
-				await execFile('jj', ['new', '-m', item]);
+				await execFile('jj', ['new', '-m', commitPrefix + item]);
 			}
 
 			const {stdout: commitId} = await execFile('jj', [
