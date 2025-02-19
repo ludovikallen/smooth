@@ -159,7 +159,7 @@ const CurrentStack: React.FC = () => {
 		);
 		await execFile('jj', ['git', 'fetch']);
 		const nextBlock = currentBlocks[selectedIndex + 1];
-		if (currentBlock == undefined) {
+		if (nextBlock == undefined) {
 			return;
 		}
 
