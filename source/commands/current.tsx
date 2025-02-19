@@ -72,11 +72,96 @@ const CurrentStack: React.FC = () => {
 		setCurrentChangeId(currentBlock.change_id);
 	};
 
-	const ShortcutsMenu = () => {
-		if (isDescribing) {
-			return <Text>Save (enter) | Move (↑↓)</Text>;
+	const submitBlock = async () => {
+		const currentBlock = currentBlocks[selectedIndex];
+		if (currentBlock == undefined) {
+			return;
 		}
-		return <Text color="gray">Navigate (↑↓) | Describe (d) | Edit (e)</Text>;
+
+		if (currentBlock.is_submitted == 1) {
+			resubmitBlock(currentBlock);
+		} else {
+			await execFile('jj', [
+				'bookmark',
+				'create',
+				currentBlock.bookmark_name,
+				'-r',
+				currentBlock.change_id,
+			]);
+			await execFile('jj', [
+				'git',
+				'push',
+				'-b',
+				currentBlock.bookmark_name,
+				'--allow-new',
+			]);
+			await updateBlock(currentBlock!.id, {is_submitted: 1});
+			setCurrentBlocks(
+				currentBlocks.map(block =>
+					block.id === currentBlock!.id ? {...block, is_submitted: 1} : block,
+				),
+			);
+		}
+	};
+
+	const resubmitBlock = async (currentBlock: Block) => {
+		await execFile('jj', ['git', 'push', '-b', currentBlock.bookmark_name]);
+	};
+
+	const mergeBlock = async () => {
+		const currentBlock = currentBlocks[selectedIndex];
+		if (currentBlock == undefined) {
+			return;
+		}
+
+		await execFile('jj', ['bookmark', 'delete', currentBlock.bookmark_name]);
+
+		await updateBlock(currentBlock!.id, {is_done: 1});
+		setCurrentBlocks(
+			currentBlocks.map(block =>
+				block.id === currentBlock!.id ? {...block, is_done: 1} : block,
+			),
+		);
+		await execFile('jj', ['git', 'fetch']);
+		const nextBlock = currentBlocks[selectedIndex + 1];
+		if (currentBlock == undefined) {
+			return;
+		}
+
+		await execFile('jj', [
+			'rebase',
+			'-s',
+			nextBlock!.change_id,
+			'-d',
+			currentStack?.target_bookmark!,
+		]);
+	};
+
+	const ShortcutsMenu = () => {
+		const currentBlock = currentBlocks[selectedIndex];
+		if (currentBlock == undefined) {
+			return;
+		}
+
+		if (currentBlock.is_done) {
+			return <Text color="gray">Navigate (↑↓)</Text>;
+		} else if (currentBlock.is_submitted == 1) {
+			return (
+				<Text color="gray">
+					Navigate (↑↓) | Describe (d) | Edit (e) | Resubmit (s) | Merge (m)
+				</Text>
+			);
+		}
+
+		if (isDescribing) {
+			return <Text color="gray">Save (enter) | Move (↑↓)</Text>;
+		}
+
+		return (
+			<Text color="gray">
+				Navigate (↑↓) | Describe (d) | Edit (e) | Submit (s) | Merge (m)
+			</Text>
+		);
 	};
 
 	useInput(
@@ -112,6 +197,14 @@ const CurrentStack: React.FC = () => {
 				if (input == 'e') {
 					editBlock();
 				}
+
+				if (input == 's') {
+					submitBlock();
+				}
+
+				if (input == 'm') {
+					mergeBlock();
+				}
 			}
 		},
 	);
@@ -134,12 +227,28 @@ const CurrentStack: React.FC = () => {
 					if (index === selectedIndex && isDescribing) {
 						return (
 							<Box key={index}>
-								<Text>
+								<Text
+									color={
+										block.is_done === 1
+											? 'green'
+											: block.is_submitted === 1
+											? 'yellow'
+											: ''
+									}
+								>
 									{index === selectedIndex ? '>' : ' '} {index}.{' '}
 									{block.change_id}{' '}
 								</Text>
 								<TextInput value={currentInput} onChange={setCurrentInput} />
-								<Text>
+								<Text
+									color={
+										block.is_done === 1
+											? 'green'
+											: block.is_submitted === 1
+											? 'yellow'
+											: ''
+									}
+								>
 									{block.change_id === currentChangeId && ' (current)'}
 								</Text>
 							</Box>
@@ -147,7 +256,15 @@ const CurrentStack: React.FC = () => {
 					} else {
 						return (
 							<Box key={index}>
-								<Text>
+								<Text
+									color={
+										block.is_done === 1
+											? 'green'
+											: block.is_submitted === 1
+											? 'yellow'
+											: ''
+									}
+								>
 									{index === selectedIndex ? '>' : ' '} {index}.{' '}
 									{block.change_id} {block.name}{' '}
 									{block.change_id === currentChangeId && '(current)'}
