@@ -1,5 +1,5 @@
 import {db} from './database.js';
-import {Stack, NewStack, NewBlock, Block} from './types.js';
+import {Stack, NewStack, NewBlock, Block, BlockUpdate} from './types.js';
 
 export async function findStackByChangeId(
 	changeId: string,
@@ -21,6 +21,14 @@ export async function findAllBlocksByStackIdOrderedByIndex(
 		.where('block.stack_id', '=', stackId)
 		.orderBy('block.index asc')
 		.selectAll(['block'])
+		.execute();
+}
+
+export async function updateBlock(id: number, block: BlockUpdate) {
+	return await db
+		.updateTable('block')
+		.set(block)
+		.where('id', '=', id)
 		.execute();
 }
 

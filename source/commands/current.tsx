@@ -4,10 +4,12 @@ import child_process from 'node:child_process';
 import {
 	findAllBlocksByStackIdOrderedByIndex,
 	findStackByChangeId,
+	updateBlock,
 } from '../repository.js';
 import {Block, Stack} from '../types.js';
 import {Box, Text, useApp, useInput} from 'ink';
 import Divider from 'ink-divider';
+import TextInput from 'ink-text-input';
 
 const execFile = util.promisify(child_process.execFile);
 
@@ -16,6 +18,8 @@ const CurrentStack: React.FC = () => {
 	const [currentStack, setCurrentStack] = useState<Stack>();
 	const [currentBlocks, setCurrentBlocks] = useState<Block[]>([]);
 	const [selectedIndex, setSelectedIndex] = useState<number>(0);
+	const [currentInput, setCurrentInput] = useState('');
+	const [isDescribing, setIsDescribing] = useState(false);
 
 	const {exit} = useApp();
 
@@ -45,9 +49,28 @@ const CurrentStack: React.FC = () => {
 		setSelectedIndex(currentIndex!);
 	};
 
+	const describeBlock = async () => {
+		const currentBlock = currentBlocks[selectedIndex];
+		if (currentBlock == undefined) {
+			return;
+		}
+
+		await execFile('jj', ['describe', '-m', currentInput]);
+		await updateBlock(currentBlock!.id, {name: currentInput});
+
+		currentBlocks[selectedIndex]!.name = currentInput;
+	};
+
+	const ShortcutsMenu = () => {
+		if (isDescribing) {
+			return <Text>Save (enter) | Move (↑↓)</Text>;
+		}
+		return <Text color="gray">Navigate (↑↓) | Describe (d)</Text>;
+	};
+
 	useInput(
 		(
-			_input: string,
+			input: string,
 			key: {
 				upArrow: boolean;
 				downArrow: boolean;
@@ -55,12 +78,25 @@ const CurrentStack: React.FC = () => {
 				tab: boolean;
 			},
 		) => {
-			if (key.upArrow) {
-				setSelectedIndex(Math.max(0, selectedIndex - 1));
-			}
+			if (isDescribing) {
+				if (key.return) {
+					describeBlock().then(() => setIsDescribing(false));
+				}
+			} else {
+				if (key.upArrow) {
+					setSelectedIndex(Math.max(0, selectedIndex - 1));
+				}
 
-			if (key.downArrow) {
-				setSelectedIndex(Math.min(currentBlocks.length - 1, selectedIndex + 1));
+				if (key.downArrow) {
+					setSelectedIndex(
+						Math.min(currentBlocks.length - 1, selectedIndex + 1),
+					);
+				}
+
+				if (input == 'd') {
+					setCurrentInput(currentBlocks[selectedIndex]!.name);
+					setIsDescribing(true);
+				}
 			}
 		},
 	);
@@ -79,14 +115,32 @@ const CurrentStack: React.FC = () => {
 					{currentStack.bookmark_prefix}
 				</Text>
 				<Divider />
-				{currentBlocks.map((block, index) => (
-					<Box key={index}>
-						<Text>
-							{index === selectedIndex ? '>' : ' '} {index}. {block.change_id}{' '}
-							{block.name} {block.change_id === currentChangeId && ' (current)'}
-						</Text>
-					</Box>
-				))}
+				{currentBlocks.map((block, index) => {
+					if (index === selectedIndex && isDescribing) {
+						return (
+							<Box key={index}>
+								<Text>
+									{index === selectedIndex ? '>' : ' '} {index}.{' '}
+									{block.change_id}{' '}
+								</Text>
+								<TextInput value={currentInput} onChange={setCurrentInput} />
+								<Text>
+									{block.change_id === currentChangeId && ' (current)'}
+								</Text>
+							</Box>
+						);
+					} else {
+						return (
+							<Box key={index}>
+								<Text>
+									{index === selectedIndex ? '>' : ' '} {index}.{' '}
+									{block.change_id} {block.name}{' '}
+									{block.change_id === currentChangeId && '(current)'}
+								</Text>
+							</Box>
+						);
+					}
+				})}
 				<ShortcutsMenu />
 			</Box>
 		);
@@ -94,9 +148,4 @@ const CurrentStack: React.FC = () => {
 
 	return <></>;
 };
-
-const ShortcutsMenu = () => {
-	return <Text color="gray">Navigate (↑↓)</Text>;
-};
-
 export default CurrentStack;
