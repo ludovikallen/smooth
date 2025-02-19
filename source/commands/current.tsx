@@ -10,6 +10,7 @@ import {Block, Stack} from '../types.js';
 import {Box, Text, useApp, useInput} from 'ink';
 import Divider from 'ink-divider';
 import TextInput from 'ink-text-input';
+import {Spinner} from '@inkjs/ui';
 
 const execFile = util.promisify(child_process.execFile);
 
@@ -20,6 +21,20 @@ const CurrentStack: React.FC = () => {
 	const [selectedIndex, setSelectedIndex] = useState<number>(0);
 	const [currentInput, setCurrentInput] = useState('');
 	const [isDescribing, setIsDescribing] = useState(false);
+	const [loadingMessage, setLoadingMessage] = useState<string | undefined>(
+		undefined,
+	);
+	const [statusMessage, setStatusMessage] = useState<string | undefined>(
+		undefined,
+	);
+	const getCurrentTime = (): string => {
+		return new Date().toLocaleTimeString('en-GB', {hour12: false});
+	};
+
+	const changeStatusMessage = (message: string) => {
+		setLoadingMessage(undefined);
+		setStatusMessage(getCurrentTime() + ': ' + message);
+	};
 
 	const {exit} = useApp();
 
@@ -50,6 +65,7 @@ const CurrentStack: React.FC = () => {
 	};
 
 	const describeBlock = async () => {
+		setLoadingMessage('Currently changing commit message...');
 		const currentBlock = currentBlocks[selectedIndex];
 		if (currentBlock == undefined) {
 			return;
@@ -63,9 +79,15 @@ const CurrentStack: React.FC = () => {
 		await updateBlock(currentBlock!.id, {name: currentInput});
 
 		currentBlocks[selectedIndex]!.name = currentInput;
+		changeStatusMessage(
+			'Changed "' +
+				currentBlocks[selectedIndex]!.change_id +
+				'" commit message.',
+		);
 	};
 
 	const editBlock = async () => {
+		setLoadingMessage('Currently changing current selected commit...');
 		const currentBlock = currentBlocks[selectedIndex];
 		if (currentBlock == undefined) {
 			return;
@@ -74,9 +96,11 @@ const CurrentStack: React.FC = () => {
 		await execFile('jj', ['edit', currentBlock.change_id]);
 
 		setCurrentChangeId(currentBlock.change_id);
+		changeStatusMessage('Currently editing ' + currentBlock.name);
 	};
 
 	const submitBlock = async () => {
+		setLoadingMessage('Submitting changes to remote...');
 		const currentBlock = currentBlocks[selectedIndex];
 		if (currentBlock == undefined) {
 			return;
@@ -84,6 +108,9 @@ const CurrentStack: React.FC = () => {
 
 		if (currentBlock.is_submitted == 1) {
 			resubmitBlock(currentBlock);
+			changeStatusMessage(
+				'Updated remote commit "' + currentBlock.name + '" successfully',
+			);
 		} else {
 			await execFile('jj', [
 				'bookmark',
@@ -105,6 +132,9 @@ const CurrentStack: React.FC = () => {
 					block.id === currentBlock!.id ? {...block, is_submitted: 1} : block,
 				),
 			);
+			changeStatusMessage(
+				'Submitted commit "' + currentBlock.name + '" to remote successfully',
+			);
 		}
 	};
 
@@ -113,6 +143,7 @@ const CurrentStack: React.FC = () => {
 	};
 
 	const mergeBlock = async () => {
+		setLoadingMessage('Merging and updating local commits...');
 		const currentBlock = currentBlocks[selectedIndex];
 		if (currentBlock == undefined) {
 			return;
@@ -142,9 +173,18 @@ const CurrentStack: React.FC = () => {
 
 		await execFile('jj', ['edit', nextBlock!.change_id]);
 		setCurrentChangeId(nextBlock!.change_id);
+		changeStatusMessage(
+			'Successfully merged "' +
+				currentBlock.name +
+				'. Now editing "' +
+				nextBlock?.name +
+				'"',
+		);
 	};
 
 	const syncStack = async () => {
+		setLoadingMessage('Syncing local stack...');
+
 		const currentBlock = currentBlocks[selectedIndex];
 		if (currentBlock == undefined) {
 			return;
@@ -163,6 +203,13 @@ const CurrentStack: React.FC = () => {
 			'-d',
 			currentStack?.target_bookmark!,
 		]);
+
+		changeStatusMessage(
+			'Successfully rebased ' +
+				nextBlock!.name +
+				' on ' +
+				currentStack?.target_bookmark,
+		);
 	};
 
 	const ShortcutsMenu = () => {
@@ -177,7 +224,7 @@ const CurrentStack: React.FC = () => {
 			return (
 				<Text color="gray">
 					Navigate (↑↓) | Describe (d) | Edit (e) | Resubmit (s) | Merge (m) |
-					Sync (s)
+					Sync (y)
 				</Text>
 			);
 		}
@@ -189,7 +236,7 @@ const CurrentStack: React.FC = () => {
 		return (
 			<Text color="gray">
 				Navigate (↑↓) | Describe (d) | Edit (e) | Submit (s) | Merge (m) | Sync
-				(s)
+				(y)
 			</Text>
 		);
 	};
@@ -236,7 +283,7 @@ const CurrentStack: React.FC = () => {
 					mergeBlock();
 				}
 
-				if (input == 's') {
+				if (input == 'y') {
 					syncStack();
 				}
 			}
@@ -307,6 +354,11 @@ const CurrentStack: React.FC = () => {
 						);
 					}
 				})}
+				{loadingMessage != undefined ? (
+					<Spinner label={loadingMessage} />
+				) : (
+					statusMessage != undefined && <Text>{statusMessage}</Text>
+				)}
 				<ShortcutsMenu />
 			</Box>
 		);
