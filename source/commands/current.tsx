@@ -137,6 +137,27 @@ const CurrentStack: React.FC = () => {
 		]);
 	};
 
+	const syncStack = async () => {
+		const currentBlock = currentBlocks[selectedIndex];
+		if (currentBlock == undefined) {
+			return;
+		}
+
+		await execFile('jj', ['git', 'fetch']);
+
+		const nextBlock = currentBlocks.find(x => x.is_done != 1);
+		if (nextBlock == undefined) {
+			return;
+		}
+		await execFile('jj', [
+			'rebase',
+			'-s',
+			nextBlock!.change_id,
+			'-d',
+			currentStack?.target_bookmark!,
+		]);
+	};
+
 	const ShortcutsMenu = () => {
 		const currentBlock = currentBlocks[selectedIndex];
 		if (currentBlock == undefined) {
@@ -144,11 +165,12 @@ const CurrentStack: React.FC = () => {
 		}
 
 		if (currentBlock.is_done) {
-			return <Text color="gray">Navigate (↑↓)</Text>;
+			return <Text color="gray">Navigate (↑↓) | Sync (s)</Text>;
 		} else if (currentBlock.is_submitted == 1) {
 			return (
 				<Text color="gray">
-					Navigate (↑↓) | Describe (d) | Edit (e) | Resubmit (s) | Merge (m)
+					Navigate (↑↓) | Describe (d) | Edit (e) | Resubmit (s) | Merge (m) |
+					Sync (s)
 				</Text>
 			);
 		}
@@ -159,7 +181,8 @@ const CurrentStack: React.FC = () => {
 
 		return (
 			<Text color="gray">
-				Navigate (↑↓) | Describe (d) | Edit (e) | Submit (s) | Merge (m)
+				Navigate (↑↓) | Describe (d) | Edit (e) | Submit (s) | Merge (m) | Sync
+				(s)
 			</Text>
 		);
 	};
@@ -204,6 +227,10 @@ const CurrentStack: React.FC = () => {
 
 				if (input == 'm') {
 					mergeBlock();
+				}
+
+				if (input == 's') {
+					syncStack();
 				}
 			}
 		},
