@@ -55,7 +55,11 @@ const CurrentStack: React.FC = () => {
 			return;
 		}
 
-		await execFile('jj', ['describe', '-m', currentInput]);
+		await execFile('jj', [
+			'describe',
+			'-m',
+			currentStack?.commit_prefix + currentInput,
+		]);
 		await updateBlock(currentBlock!.id, {name: currentInput});
 
 		currentBlocks[selectedIndex]!.name = currentInput;
@@ -135,6 +139,9 @@ const CurrentStack: React.FC = () => {
 			'-d',
 			currentStack?.target_bookmark!,
 		]);
+
+		await execFile('jj', ['edit', nextBlock!.change_id]);
+		setCurrentChangeId(nextBlock!.change_id);
 	};
 
 	const syncStack = async () => {
