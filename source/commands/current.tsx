@@ -61,11 +61,22 @@ const CurrentStack: React.FC = () => {
 		currentBlocks[selectedIndex]!.name = currentInput;
 	};
 
+	const editBlock = async () => {
+		const currentBlock = currentBlocks[selectedIndex];
+		if (currentBlock == undefined) {
+			return;
+		}
+
+		await execFile('jj', ['edit', currentBlock.change_id]);
+
+		setCurrentChangeId(currentBlock.change_id);
+	};
+
 	const ShortcutsMenu = () => {
 		if (isDescribing) {
 			return <Text>Save (enter) | Move (↑↓)</Text>;
 		}
-		return <Text color="gray">Navigate (↑↓) | Describe (d)</Text>;
+		return <Text color="gray">Navigate (↑↓) | Describe (d) | Edit (e)</Text>;
 	};
 
 	useInput(
@@ -96,6 +107,10 @@ const CurrentStack: React.FC = () => {
 				if (input == 'd') {
 					setCurrentInput(currentBlocks[selectedIndex]!.name);
 					setIsDescribing(true);
+				}
+
+				if (input == 'e') {
+					editBlock();
 				}
 			}
 		},
