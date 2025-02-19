@@ -4,6 +4,8 @@ import TextInput from 'ink-text-input';
 import util from 'node:util';
 import child_process from 'node:child_process';
 import Divider from 'ink-divider';
+import {createStack} from '../repository.js';
+import {NewBlock} from '../types.js';
 
 const execFile = util.promisify(child_process.execFile);
 
@@ -22,7 +24,7 @@ const CreateStack: React.FC = () => {
 	);
 	const [previousStep, setPreviousStep] = useState<Step | undefined>();
 	const [items, setItems] = useState<string[]>([]);
-	const [targetBookmark, setTargetBookmark] = useState<string>('');
+	const [targetBookmark, setTargetBookmark] = useState<string>('main');
 	const [bookmarkPrefix, setBookmarkPrefix] = useState<string>('');
 	const [commitPrefix, setCommitPrefix] = useState<string>('');
 	const [stackName, setStackName] = useState<string>('');
@@ -37,26 +39,51 @@ const CreateStack: React.FC = () => {
 		await execFile('jj', ['git', 'fetch']);
 
 		let index = 0;
+		const blocks = [] as NewBlock[];
 		for (const item of items) {
 			if (index == 0) {
-				await execFile('jj', ['new', '@', 'main', '-m', item]);
+				await execFile('jj', [
+					'new',
+					'@',
+					targetBookmark,
+					'-m',
+					commitPrefix + item,
+				]);
 			} else {
-				await execFile('jj', ['new', '-m', item]);
+				await execFile('jj', ['new', '-m', commitPrefix + item]);
 			}
+
+			const {stdout} = await execFile('jj', [
+				'show',
+				'--template',
+				'change_id ++ " "',
+			]);
+			const changeId = stdout.split(' ')[0];
+
+			blocks.push({
+				index: index,
+				is_done: 0,
+				is_submitted: 0,
+				name: item,
+				change_id: changeId!,
+				bookmark_name: bookmarkPrefix + changeId,
+			});
 
 			index++;
 		}
 		if (items.length > 0) {
-			const {stdout, stderr} = await execFile('jj', [
-				'prev',
-				(items.length - 1).toString(),
-				'--edit',
-			]);
+			await execFile('jj', ['prev', (items.length - 1).toString(), '--edit']);
 
-			console.log(stdout);
-			console.log(stderr);
+			createStack(
+				{
+					name: stackName,
+					target_bookmark: targetBookmark,
+					bookmark_prefix: bookmarkPrefix,
+					commit_prefix: commitPrefix,
+				},
+				blocks,
+			);
 		}
-
 		exit();
 	};
 
