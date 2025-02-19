@@ -2,11 +2,13 @@ import React, {useEffect, useState} from 'react';
 import util from 'node:util';
 import child_process from 'node:child_process';
 import {
+	deleteBlock,
 	findAllBlocksByStackIdOrderedByIndex,
 	findStackByChangeId,
+	insertBlockAtIndex,
 	updateBlock,
 } from '../repository.js';
-import {Block, Stack} from '../types.js';
+import {Block, NewBlock, Stack} from '../types.js';
 import {Box, Text, useApp, useInput} from 'ink';
 import Divider from 'ink-divider';
 import TextInput from 'ink-text-input';
@@ -20,7 +22,10 @@ const CurrentStack: React.FC = () => {
 	const [currentBlocks, setCurrentBlocks] = useState<Block[]>([]);
 	const [selectedIndex, setSelectedIndex] = useState<number>(0);
 	const [currentInput, setCurrentInput] = useState('');
+	const [newBlockInput, setNewBlockInput] = useState('');
 	const [isDescribing, setIsDescribing] = useState(false);
+	const [isAdding, setIsAdding] = useState(false);
+	const [addingIndex, setAddingIndex] = useState(0);
 	const [loadingMessage, setLoadingMessage] = useState<string | undefined>(
 		undefined,
 	);
@@ -58,6 +63,7 @@ const CurrentStack: React.FC = () => {
 
 		const blocks = await findAllBlocksByStackIdOrderedByIndex(stack?.id!);
 		setCurrentBlocks(blocks);
+		setAddingIndex(blocks.length);
 
 		const currentIndex = blocks.filter(block => block.change_id === changeId)[0]
 			?.index;
@@ -73,6 +79,7 @@ const CurrentStack: React.FC = () => {
 
 		await execFile('jj', [
 			'describe',
+			currentBlock.change_id,
 			'-m',
 			currentStack?.commit_prefix + currentInput,
 		]);
@@ -80,9 +87,7 @@ const CurrentStack: React.FC = () => {
 
 		currentBlocks[selectedIndex]!.name = currentInput;
 		changeStatusMessage(
-			'Changed "' +
-				currentBlocks[selectedIndex]!.change_id +
-				'" commit message.',
+			'"' + currentBlocks[selectedIndex]!.name + '" is the new commit message.',
 		);
 	};
 
@@ -212,19 +217,112 @@ const CurrentStack: React.FC = () => {
 		);
 	};
 
-	const ShortcutsMenu = () => {
+	const addBlock = async (index: number, name: string) => {
+		setLoadingMessage('Adding block to local stack...');
+
+		const basedOnCommit = currentBlocks.find(x => x.index == index - 1);
+		if (basedOnCommit == undefined || index == 0) {
+			await execFile('jj', [
+				'new',
+				'@',
+				currentStack!.target_bookmark,
+				'-m',
+				currentStack?.commit_prefix + name,
+			]);
+		} else {
+			await execFile('jj', [
+				'new',
+				basedOnCommit.change_id,
+				'-m',
+				currentStack?.commit_prefix + name,
+			]);
+		}
+
+		const {stdout} = await execFile('jj', [
+			'show',
+			'--template',
+			'change_id ++ " "',
+		]);
+		const changeId = stdout.split(' ')[0];
+
+		const block = {
+			index: index,
+			is_done: 0,
+			is_submitted: 0,
+			name: name,
+			change_id: changeId!,
+			bookmark_name: currentStack?.bookmark_prefix! + changeId,
+		} as NewBlock;
+
+		await insertBlockAtIndex(block, currentStack?.id!);
+		const blocks = await findAllBlocksByStackIdOrderedByIndex(
+			currentStack?.id!,
+		);
+
+		setCurrentBlocks(blocks);
+		setCurrentChangeId(changeId);
+		setAddingIndex(blocks.length);
+		setNewBlockInput('');
+
+		changeStatusMessage('Successfully added ' + name + ' at index ' + index);
+	};
+
+	const removeBlock = async () => {
+		setLoadingMessage('Removing selected block...');
 		const currentBlock = currentBlocks[selectedIndex];
 		if (currentBlock == undefined) {
 			return;
 		}
 
+		await execFile('jj', ['abandon', currentBlock.change_id]);
+
+		await deleteBlock(currentBlock!.id);
+		const filteredBlocks = currentBlocks.filter(x => x.id !== currentBlock!.id);
+		setCurrentBlocks(filteredBlocks);
+
+		let nextBlock = filteredBlocks[selectedIndex];
+		if (nextBlock == undefined) {
+			nextBlock = filteredBlocks[selectedIndex - 1];
+		}
+		if (nextBlock == undefined || nextBlock.is_done == 1) {
+			for (let secondsLeft = 10; secondsLeft > 0; secondsLeft--) {
+				changeStatusMessage(
+					`No commit left to work on for this stack. Command will exit in ${secondsLeft} seconds...`,
+				);
+
+				await new Promise(resolve => setTimeout(resolve, 1000));
+			}
+			exit();
+			return;
+		}
+
+		await execFile('jj', ['edit', nextBlock!.change_id]);
+		setCurrentChangeId(nextBlock!.change_id);
+		changeStatusMessage(
+			'Successfully removed "' +
+				currentBlock.name +
+				'. Now editing "' +
+				nextBlock?.name +
+				'"',
+		);
+	};
+
+	const ShortcutsMenu = () => {
+		const currentBlock = currentBlocks[selectedIndex];
+		if (currentBlock == undefined) {
+			return;
+		}
+		if (isAdding) {
+			return <Text>Save (enter) | Move (↑↓) | Back (esc)</Text>;
+		}
+
 		if (currentBlock.is_done) {
-			return <Text color="gray">Navigate (↑↓) | Sync (s)</Text>;
+			return <Text color="gray">Navigate (↑↓) | Sync (y) | Add (a)</Text>;
 		} else if (currentBlock.is_submitted == 1) {
 			return (
 				<Text color="gray">
 					Navigate (↑↓) | Describe (d) | Edit (e) | Resubmit (s) | Merge (m) |
-					Sync (y)
+					Sync (y) | Add (a) | Remove (r)
 				</Text>
 			);
 		}
@@ -236,7 +334,7 @@ const CurrentStack: React.FC = () => {
 		return (
 			<Text color="gray">
 				Navigate (↑↓) | Describe (d) | Edit (e) | Submit (s) | Merge (m) | Sync
-				(y)
+				(y) | Add (a) | Remove (r)
 			</Text>
 		);
 	};
@@ -249,11 +347,54 @@ const CurrentStack: React.FC = () => {
 				downArrow: boolean;
 				return: boolean;
 				tab: boolean;
+				escape: boolean;
 			},
 		) => {
+			const currentBlock = currentBlocks[selectedIndex];
+			if (currentBlock == undefined) {
+				return;
+			}
 			if (isDescribing) {
 				if (key.return) {
 					describeBlock().then(() => setIsDescribing(false));
+				}
+			} else if (isAdding) {
+				if (key.return) {
+					addBlock(addingIndex, newBlockInput).then(() => setIsAdding(false));
+				}
+
+				if (key.escape) {
+					setIsAdding(false);
+					setAddingIndex(currentBlocks.length);
+					setNewBlockInput('');
+				}
+
+				if (key.upArrow) {
+					const newIndex = Math.max(0, addingIndex - 1);
+					setAddingIndex(newIndex);
+				}
+
+				if (key.downArrow) {
+					const newIndex = Math.min(currentBlocks.length, addingIndex + 1);
+					setAddingIndex(newIndex);
+				}
+			} else if (currentBlock.is_done == 1) {
+				if (key.upArrow) {
+					setSelectedIndex(Math.max(0, selectedIndex - 1));
+				}
+
+				if (key.downArrow) {
+					setSelectedIndex(
+						Math.min(currentBlocks.length - 1, selectedIndex + 1),
+					);
+				}
+
+				if (input == 'y') {
+					syncStack();
+				}
+
+				if (input == 'a') {
+					setIsAdding(true);
 				}
 			} else {
 				if (key.upArrow) {
@@ -286,9 +427,44 @@ const CurrentStack: React.FC = () => {
 				if (input == 'y') {
 					syncStack();
 				}
+
+				if (input == 'a') {
+					setIsAdding(true);
+				}
+
+				if (input == 'r') {
+					removeBlock();
+				}
 			}
 		},
 	);
+
+	const AddingBlock = () => {
+		const newBlocks = currentBlocks.map(x => x.name);
+		newBlocks.splice(addingIndex, 0, newBlockInput);
+
+		return newBlocks.map((block, index) => {
+			if (index === addingIndex) {
+				return (
+					<Box key={index}>
+						<Text>
+							{'>'} {index}.{' '}
+						</Text>
+						<TextInput value={newBlockInput} onChange={setNewBlockInput} />
+					</Box>
+				);
+			} else {
+				return (
+					<Box key={index}>
+						<Text>
+							{'  '}
+							{index}. {block}
+						</Text>
+					</Box>
+				);
+			}
+		});
+	};
 
 	useEffect(() => {
 		getCurrentStack();
@@ -304,56 +480,60 @@ const CurrentStack: React.FC = () => {
 					{currentStack.bookmark_prefix}
 				</Text>
 				<Divider />
-				{currentBlocks.map((block, index) => {
-					if (index === selectedIndex && isDescribing) {
-						return (
-							<Box key={index}>
-								<Text
-									color={
-										block.is_done === 1
-											? 'green'
-											: block.is_submitted === 1
-											? 'yellow'
-											: ''
-									}
-								>
-									{index === selectedIndex ? '>' : ' '} {index}.{' '}
-									{block.change_id}{' '}
-								</Text>
-								<TextInput value={currentInput} onChange={setCurrentInput} />
-								<Text
-									color={
-										block.is_done === 1
-											? 'green'
-											: block.is_submitted === 1
-											? 'yellow'
-											: ''
-									}
-								>
-									{block.change_id === currentChangeId && ' (current)'}
-								</Text>
-							</Box>
-						);
-					} else {
-						return (
-							<Box key={index}>
-								<Text
-									color={
-										block.is_done === 1
-											? 'green'
-											: block.is_submitted === 1
-											? 'yellow'
-											: ''
-									}
-								>
-									{index === selectedIndex ? '>' : ' '} {index}.{' '}
-									{block.change_id} {block.name}{' '}
-									{block.change_id === currentChangeId && '(current)'}
-								</Text>
-							</Box>
-						);
-					}
-				})}
+				{isAdding ? (
+					<AddingBlock />
+				) : (
+					currentBlocks.map((block, index) => {
+						if (index === selectedIndex && isDescribing) {
+							return (
+								<Box key={index}>
+									<Text
+										color={
+											block.is_done === 1
+												? 'green'
+												: block.is_submitted === 1
+												? 'yellow'
+												: ''
+										}
+									>
+										{index === selectedIndex ? '>' : ' '} {index}.{' '}
+										{block.change_id}{' '}
+									</Text>
+									<TextInput value={currentInput} onChange={setCurrentInput} />
+									<Text
+										color={
+											block.is_done === 1
+												? 'green'
+												: block.is_submitted === 1
+												? 'yellow'
+												: ''
+										}
+									>
+										{block.change_id === currentChangeId && ' (current)'}
+									</Text>
+								</Box>
+							);
+						} else {
+							return (
+								<Box key={index}>
+									<Text
+										color={
+											block.is_done === 1
+												? 'green'
+												: block.is_submitted === 1
+												? 'yellow'
+												: ''
+										}
+									>
+										{index === selectedIndex ? '>' : ' '} {index}.{' '}
+										{block.change_id} {block.name}{' '}
+										{block.change_id === currentChangeId && '(current)'}
+									</Text>
+								</Box>
+							);
+						}
+					})
+				)}
 				{loadingMessage != undefined ? (
 					<Spinner label={loadingMessage} />
 				) : (
