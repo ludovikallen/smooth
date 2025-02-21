@@ -32,16 +32,8 @@ export async function insertBlockAtIndex(block: NewBlock, stackId: number) {
 		.selectAll()
 		.execute();
 
-	const currentStack = await db
-		.selectFrom('stack')
-		.where('id', '=', stackId)
-		.selectAll()
-		.executeTakeFirst();
-
 	for (const currentBlock of blocks) {
 		currentBlock.index++;
-		currentBlock.bookmark_name =
-			currentStack?.bookmark_prefix! + currentBlock.index;
 		await db
 			.updateTable('block')
 			.set(currentBlock)
@@ -71,32 +63,8 @@ export async function updateBlock(id: number, block: BlockUpdate) {
 		.execute();
 }
 
-export async function deleteBlock(block: Block) {
-	const blocks = await db
-		.selectFrom('block')
-		.where('block.stack_id', '=', block.stack_id)
-		.where('block.index', '>=', block.index)
-		.selectAll()
-		.execute();
-
-	const currentStack = await db
-		.selectFrom('stack')
-		.where('id', '=', block.stack_id)
-		.selectAll()
-		.executeTakeFirst();
-
-	for (const currentBlock of blocks) {
-		currentBlock.index--;
-		currentBlock.bookmark_name =
-			currentStack?.bookmark_prefix! + currentBlock.index;
-		await db
-			.updateTable('block')
-			.set(currentBlock)
-			.where('id', '=', currentBlock.id)
-			.execute();
-	}
-
-	return await db.deleteFrom('block').where('id', '=', block.id).execute();
+export async function deleteBlock(id: number) {
+	return await db.deleteFrom('block').where('id', '=', id).execute();
 }
 
 export async function createStack(stack: NewStack, blocks: NewBlock[]) {

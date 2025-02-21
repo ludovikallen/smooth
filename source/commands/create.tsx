@@ -66,7 +66,7 @@ const CreateStack: React.FC = () => {
 				is_submitted: 0,
 				name: item,
 				change_id: changeId!,
-				bookmark_name: bookmarkPrefix + index,
+				bookmark_name: bookmarkPrefix + changeId,
 			});
 
 			index++;
