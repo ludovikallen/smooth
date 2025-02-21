@@ -221,7 +221,11 @@ const CurrentStack: React.FC = () => {
 		setLoadingMessage('Adding block to local stack...');
 
 		const basedOnCommit = currentBlocks.find(x => x.index == index - 1);
-		if (basedOnCommit == undefined || index == 0) {
+		if (
+			basedOnCommit == undefined ||
+			index == 0 ||
+			basedOnCommit.is_done == 1
+		) {
 			await execFile('jj', [
 				'new',
 				'@',
@@ -251,7 +255,7 @@ const CurrentStack: React.FC = () => {
 			is_submitted: 0,
 			name: name,
 			change_id: changeId!,
-			bookmark_name: currentStack?.bookmark_prefix! + changeId,
+			bookmark_name: currentStack?.bookmark_prefix! + index,
 		} as NewBlock;
 
 		await insertBlockAtIndex(block, currentStack?.id!);
@@ -276,7 +280,7 @@ const CurrentStack: React.FC = () => {
 
 		await execFile('jj', ['abandon', currentBlock.change_id]);
 
-		await deleteBlock(currentBlock!.id);
+		await deleteBlock(currentBlock!);
 		const filteredBlocks = currentBlocks.filter(x => x.id !== currentBlock!.id);
 		setCurrentBlocks(filteredBlocks);
 
