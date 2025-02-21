@@ -14,10 +14,11 @@ export interface BlockTable {
 	bookmark_name: string;
 	is_submitted: 0 | 1;
 	is_done: 0 | 1;
+	updated_at: string;
 }
 
 export type Block = Selectable<BlockTable>;
-export type NewBlock = Omit<BlockTable, 'id' | 'stack_id'>;
+export type NewBlock = Omit<BlockTable, 'id' | 'stack_id' | 'updated_at'>;
 export type BlockUpdate = Updateable<BlockTable>;
 
 export interface StackTable {
