@@ -1,4 +1,4 @@
-import {Kysely} from 'kysely';
+import {Kysely, sql} from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
@@ -22,6 +22,9 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn('bookmark_name', 'text')
 		.addColumn('is_submitted', 'boolean')
 		.addColumn('is_done', 'boolean')
+		.addColumn('updated_at', 'text', col =>
+			col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull(),
+		)
 		.addForeignKeyConstraint('fk_stack_id', ['stack_id'], 'stack', ['id'])
 		.execute();
 

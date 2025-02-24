@@ -1,5 +1,7 @@
 import {db} from './database.js';
+import {formatCurrentTime} from './utils.js';
 import {Stack, NewStack, NewBlock, Block, BlockUpdate} from './types.js';
+import {sql} from 'kysely';
 
 export async function findStackByChangeId(
 	changeId: string,
@@ -10,6 +12,48 @@ export async function findStackByChangeId(
 		.where('block.change_id', '=', changeId)
 		.selectAll(['stack'])
 		.executeTakeFirst();
+}
+
+export async function findAllStacks() {
+	return await db
+		.selectFrom('stack')
+		.innerJoin('block', 'block.stack_id', 'stack.id')
+		.orderBy('block.updated_at desc')
+		.selectAll(['stack'])
+		.groupBy('stack.id')
+		.execute();
+}
+
+type StackStats = {
+	stack_id: number;
+	total: number;
+	totalDone: number;
+	firstNotDoneBlockChangeId: string | null;
+};
+
+export async function getStacksStats(): Promise<StackStats[]> {
+	const result = await db
+		.selectFrom('stack')
+		.leftJoin('block', 'block.stack_id', 'stack.id')
+		.select([
+			'stack.id as stack_id',
+			eb => eb.fn.count<number>('block.id').as('total'),
+			eb =>
+				eb.fn
+					.countAll<number>()
+					.filterWhere('block.is_done', '=', 1)
+					.as('totalDone'),
+			eb =>
+				eb.fn
+					.min<string | null>(
+						sql`CASE WHEN block.is_done = 0 THEN block.change_id END`,
+					)
+					.as('firstNotDoneBlockChangeId'),
+		])
+		.groupBy('stack.id')
+		.execute();
+
+	return result;
 }
 
 export async function findAllBlocksByStackIdOrderedByIndex(
@@ -59,6 +103,7 @@ export async function insertBlockAtIndex(block: NewBlock, stackId: number) {
 			is_submitted: block.is_submitted,
 			is_done: block.is_done,
 			stack_id: stackId,
+			updated_at: formatCurrentTime(),
 		})
 		.execute();
 }
@@ -116,6 +161,7 @@ export async function createStack(stack: NewStack, blocks: NewBlock[]) {
 				is_submitted: block.is_submitted,
 				is_done: block.is_done,
 				stack_id: newStack.id,
+				updated_at: formatCurrentTime(),
 			};
 		});
 

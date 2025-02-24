@@ -13,6 +13,7 @@ import {Box, Text, useApp, useInput} from 'ink';
 import Divider from 'ink-divider';
 import TextInput from 'ink-text-input';
 import {Spinner} from '@inkjs/ui';
+import {formatCurrentTime} from '../utils.js';
 
 const execFile = util.promisify(child_process.execFile);
 
@@ -83,7 +84,10 @@ const CurrentStack: React.FC = () => {
 			'-m',
 			currentStack?.commit_prefix + currentInput,
 		]);
-		await updateBlock(currentBlock!.id, {name: currentInput});
+		await updateBlock(currentBlock!.id, {
+			name: currentInput,
+			updated_at: formatCurrentTime(),
+		});
 
 		currentBlocks[selectedIndex]!.name = currentInput;
 		changeStatusMessage(
@@ -131,7 +135,10 @@ const CurrentStack: React.FC = () => {
 				currentBlock.bookmark_name,
 				'--allow-new',
 			]);
-			await updateBlock(currentBlock!.id, {is_submitted: 1});
+			await updateBlock(currentBlock!.id, {
+				is_submitted: 1,
+				updated_at: formatCurrentTime(),
+			});
 			setCurrentBlocks(
 				currentBlocks.map(block =>
 					block.id === currentBlock!.id ? {...block, is_submitted: 1} : block,
@@ -156,7 +163,10 @@ const CurrentStack: React.FC = () => {
 
 		await execFile('jj', ['bookmark', 'delete', currentBlock.bookmark_name]);
 
-		await updateBlock(currentBlock!.id, {is_done: 1});
+		await updateBlock(currentBlock!.id, {
+			is_done: 1,
+			updated_at: formatCurrentTime(),
+		});
 		setCurrentBlocks(
 			currentBlocks.map(block =>
 				block.id === currentBlock!.id ? {...block, is_done: 1} : block,
@@ -181,7 +191,7 @@ const CurrentStack: React.FC = () => {
 		changeStatusMessage(
 			'Successfully merged "' +
 				currentBlock.name +
-				'. Now editing "' +
+				'". Now editing "' +
 				nextBlock?.name +
 				'"',
 		);
