@@ -96,7 +96,7 @@ const CurrentStack: React.FC = () => {
 	};
 
 	const editBlock = async () => {
-		setLoadingMessage('Currently changing current selected commit...');
+		setLoadingMessage('Currently changing current selected committtttt...');
 		const currentBlock = currentBlocks[selectedIndex];
 		if (currentBlock == undefined) {
 			return;
