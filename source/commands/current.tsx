@@ -61,7 +61,7 @@ const CurrentStack: React.FC = () => {
 			exit();
 		}
 		setCurrentStack(stack);
-
+		console.log('Test');
 		const blocks = await findAllBlocksByStackIdOrderedByIndex(stack?.id!);
 		setCurrentBlocks(blocks);
 		setAddingIndex(blocks.length);
