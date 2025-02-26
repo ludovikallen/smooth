@@ -1,16 +1,12 @@
 #!/usr/bin/env node
 import {existsSync, mkdirSync, writeFileSync} from 'fs';
 import Pastel from 'pastel';
-import util from 'node:util';
-import child_process from 'node:child_process';
-const exec = util.promisify(child_process.exec);
 
 const app = new Pastel({
 	importMeta: import.meta,
 });
 
 const runMigration = async () => {
-	await exec('smooth migrate');
 	console.log('Test');
 };
 
