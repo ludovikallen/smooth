@@ -11,6 +11,7 @@ const app = new Pastel({
 
 const runMigration = async () => {
 	await exec('smooth migrate');
+	console.log('Test');
 };
 
 const directoryPath = './.smooth';
